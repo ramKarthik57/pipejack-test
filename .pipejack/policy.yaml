@@ -7,6 +7,7 @@ allowed_binaries:
   - /usr/bin/bash
   - /usr/bin/sh
   - /usr/bin/make
+  - /usr/local/bin/proctree
 blocked_binaries:
   - /usr/bin/curl
   - /usr/bin/wget
