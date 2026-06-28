@@ -6,9 +6,42 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
+type Policy struct {
+	Version               string            `yaml:"version"`
+	Pipeline              string            `yaml:"pipeline"`
+	AllowedBinaries       []string          `yaml:"allowed_binaries"`
+	BlockedBinaries       []string          `yaml:"blocked_binaries"`
+	SeverityThresholds    map[string]int    `yaml:"severity_thresholds"`
+	ActionsOnViolation    map[string]bool   `yaml:"actions_on_violation"`
+}
+
 func main() {
+	// Read policy (path relative to where the binary runs)
+	policyPath := ".pipejack/policy.yaml"
+	data, err := os.ReadFile(policyPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading policy: %v\n", err)
+		os.Exit(1)
+	}
+
+	var policy Policy
+	if err := yaml.Unmarshal(data, &policy); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing policy: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Build allowed map
+	allowed := make(map[string]bool)
+	for _, bin := range policy.AllowedBinaries {
+		allowed[bin] = true
+	}
+
+	// Scan /proc
+	violations := 0
 	procs, _ := os.ReadDir("/proc")
 	for _, p := range procs {
 		if !p.IsDir() {
@@ -18,8 +51,23 @@ func main() {
 		if err != nil {
 			continue
 		}
-		cmdline, _ := os.ReadFile(filepath.Join("/proc", p.Name(), "cmdline"))
-		exe, _ := os.Readlink(filepath.Join("/proc", p.Name(), "exe"))
-		fmt.Printf("PID: %d\tExe: %s\tCmd: %s\n", pid, exe, strings.ReplaceAll(string(cmdline), "\x00", " "))
+
+		exe, err := os.Readlink(filepath.Join("/proc", p.Name(), "exe"))
+		if err != nil {
+			// Kernel threads or permission issues – skip
+			continue
+		}
+
+		if !allowed[exe] {
+			cmdline, _ := os.ReadFile(filepath.Join("/proc", p.Name(), "cmdline"))
+			cmd := strings.ReplaceAll(string(cmdline), "\x00", " ")
+			fmt.Printf("VIOLATION: PID %d (%s) cmd: %s\n", pid, exe, cmd)
+			violations++
+		}
+	}
+
+	fmt.Printf("\nScan complete. Violations: %d\n", violations)
+	if violations > 0 {
+		os.Exit(1) // Non‑zero exit to fail the pipeline
 	}
 }

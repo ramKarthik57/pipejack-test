@@ -1,0 +1,12 @@
+{
+  "name": "test-app",
+  "version": "1.0.0",
+  "description": "PipeJack test application",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'Build complete'"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
