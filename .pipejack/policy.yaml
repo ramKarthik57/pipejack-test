@@ -1,0 +1,22 @@
+version: "1.0"
+pipeline: "nodejs-build"
+allowed_binaries:
+  - /usr/bin/npm
+  - /usr/bin/node
+  - /usr/bin/git
+  - /usr/bin/bash
+  - /usr/bin/sh
+  - /usr/bin/make
+blocked_binaries:
+  - /usr/bin/curl
+  - /usr/bin/wget
+  - /usr/bin/nc
+  - /usr/bin/socat
+severity_thresholds:
+  high: 70
+  medium: 40
+  low: 10
+actions_on_violation:
+  block: true
+  quarantine: true
+  alert: true
